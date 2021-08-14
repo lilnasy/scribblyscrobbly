@@ -1,0 +1,146 @@
+<p>Created by EmmaGoldmanVEVO#2035 <a href="https:www.last.fm/user/TedBundyVEVO" style="color: red;">LastFM</a> <a href="https:open.spotify.com/user/arshbunny" style="color: chartreuse;">Spotify</a></p>
+<p id="what-now">CLICK CHOOSE FILES BUTTON AND SELECT *ALL* "ENDSONG" JSON FILES AND OPEN</p>
+<input type="file" multiple id="file-input" onchange="scribblyscrobbly(this.files)"/>
+<p id="status">CURRENT STATUS:</p>
+<script>
+	function scribblyscrobbly(files) {
+
+		playdata = [];
+
+		//songs played for shorter amount of time will be removed (seconds) 
+		requiredPlayTime = 30;
+
+		//on last.fm you can scrobble 2800 tracks in a day, importing 2600 gives you room to scrobble 200 songs
+		importsPerDay = 2600;
+
+		document.getElementById("status").innerHTML += "</br>" + files.length + " FILES SELECTED </br>";
+
+		var reader = new FileReader();
+
+		function readFile(index) {
+
+			if (index >= files.length) {console.log("merged playdata", playdata); deleteproperties();}
+
+			else {	var file = files[index]
+
+				reader.onload = function(e) {
+					console.log(files[index].name, JSON.parse(reader.result))
+					playdata = playdata.concat(JSON.parse(reader.result));
+					document.getElementById("status").innerHTML += "LOADED DATA FROM FILE " + files[index].name + "</br>";
+					readFile(index+1);}
+
+				reader.onprogress = function(e) {
+					var percentageRead = Math.floor((e.loaded / e.total) * 100);
+					document.getElementById("status").innerHTML += percentageRead + "% ";};
+
+				reader.onerror = function() {
+					document.getElementById("status").innerHTML += "<br/>ERROR IN TRYING TO LOAD FILE";};
+
+				reader.readAsText(file);}}
+
+		function deleteproperties() {
+
+			document.getElementById("status").innerHTML += "DELETING IRRELEVANT INFORMATION (LOCATION, SUFFLE, DEVICE AND SUCH)";
+
+			playdata.forEach(function(property){
+				delete property.city;
+				delete property.conn_country;
+				delete property.episode_name;
+				delete property.episode_show_name;
+				delete property.incognito_mode;
+				delete property.ip_addr_decrypted;
+				delete property.latitude;
+				delete property.longitude;
+				delete property.metro_code;
+				delete property.offline;
+				delete property.offline_timestamp;
+				delete property.platform;
+				delete property.reason_start;
+				delete property.reason_end;
+				delete property.region;
+				delete property.shuffle;
+				delete property.skipped;
+				delete property.user_agent_decrypted;
+				delete property.username;});
+
+			console.log("cleaned playdata", playdata);
+
+			removeShortPlays();};
+
+		function removeShortPlays() {
+
+			document.getElementById("status").innerHTML += "</br>REMOVING SONGS PLAYED FOR LESS THAN " + requiredPlayTime + " SECONDS";
+
+			playdata = playdata.filter(song => song.ms_played >= requiredPlayTime*1000);
+			playdata = playdata.filter(song => song.master_metadata_track_name != null);
+			//playdata = playdata.filter(song => song.master_metadata_album_artist_name != null);
+			//playdata = playdata.filter(song => song.master_metadata_album_album_name != null);
+
+			console.log("removed short plays from playdata", playdata);
+
+			sort();};
+
+		function sort() {
+
+			document.getElementById("status").innerHTML += "</br>SORTING PLAYS BY DATE";
+
+			playdata = playdata.sort((a,b) => Date.parse(a.ts) - Date.parse(b.ts));
+
+			console.log("time sorted playdata", playdata);
+
+			adaptToScrubbler();};
+
+		function adaptToScrubbler() {
+
+			document.getElementById("status").innerHTML += "</br>CHANGING THINGS SO THAT <a href=\"https:github.com/coczero/Last.fm-Scrubbler-WPF\">Last.fm Scrubbler</a> CAN UNDERSTAND THE FILES";
+
+			playdata = playdata.map(({master_metadata_album_album_name, master_metadata_album_artist_name, master_metadata_track_name, ts}) => ({albumName:master_metadata_album_album_name, artistName:master_metadata_album_artist_name, trackName:master_metadata_track_name, datetime:ts}));
+
+			console.log("object properties updates in playdata", playdata);
+
+			split();};
+
+		function split() {
+
+			document.getElementById("status").innerHTML += "</br></br>SPLTTING DATA INTO " + Math.ceil(playdata.length/ importsPerDay) + " JSON FILES WITH <" +importsPerDay + " PLAYS EACH";
+
+			const divide = function(array, size) {
+				if (!array.length) {
+					return [];}
+				const head = array.slice(0, size);
+				const tail = array.slice(size);
+			return [head, ...divide(tail, size)];};
+
+			playdata = divide(playdata, importsPerDay);
+
+			console.log("diversified playdata", playdata);
+
+			writefiles(0);};
+
+		function writefiles(index) {
+			var jsonstring = JSON.stringify(playdata[index]);
+			var file = new Blob([JSON.stringify(playdata[index])], {type : 'application/json'});
+
+			var element = document.createElement('a');
+			element.setAttribute('href', window.URL.createObjectURL(file));
+			element.setAttribute('download', playdata[index][0].datetime);
+			element.style.display = 'none';
+			document.body.appendChild(element);
+			element.click();
+			document.body.removeChild(element);
+			createlink(index+1);};
+
+		function createlink(index) {
+
+			var element = document.createElement('button');
+			element.innerHTML = "DOWNLOAD THE DATA TO BE IMPORTED ON DAY " + (index+1);
+			element.onclick = function() {this.remove(); writefiles(index);};
+			document.body.appendChild(element)
+
+		};
+
+		readFile(0);
+
+	}
+
+</script>
