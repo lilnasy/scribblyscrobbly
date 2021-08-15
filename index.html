@@ -1,146 +1,138 @@
-<p>Created by EmmaGoldmanVEVO#2035 <a href="https:www.last.fm/user/TedBundyVEVO" style="color: red;">LastFM</a> <a href="https:open.spotify.com/user/arshbunny" style="color: chartreuse;">Spotify</a></p>
-<p id="what-now">CLICK CHOOSE FILES BUTTON AND SELECT *ALL* "ENDSONG" JSON FILES AND OPEN</p>
-<input type="file" multiple id="file-input" onchange="scribblyscrobbly(this.files)"/>
-<p id="status">CURRENT STATUS:</p>
+<p>Created by arsh#1221 <a href="https:www.last.fm/user/TedBundyVEVO" style="color: red;">LastFM</a> <a href="https:open.spotify.com/user/arshbunny" style="color: chartreuse;">Spotify</a></p>
+<p id="what-now">click choose files button and open the csv file</p>
+<input type="file" id="file-input" accept=".json,.csv" onchange="scribblyScrobbly(this.files)" multiple/>
+<p id="status">current status:</p>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.2.0/papaparse.min.js'></script>
 <script>
-	function scribblyscrobbly(files) {
-
-		playdata = [];
-
+	function scribblyScrobbly(files) {
+        
+        playdata = []
+                
 		//songs played for shorter amount of time will be removed (seconds) 
-		requiredPlayTime = 30;
+		requiredPlayDuration = 30
 
 		//on last.fm you can scrobble 2800 tracks in a day, importing 2600 gives you room to scrobble 200 songs
-		importsPerDay = 2600;
+		importsPerDay = 2600
 
-		document.getElementById("status").innerHTML += "</br>" + files.length + " FILES SELECTED </br>";
+		document.getElementById("status").innerHTML += "</br>processing " + files.length + " file(s)"
 
-		var reader = new FileReader();
+		var reader = new FileReader()
 
 		function readFile(index) {
 
-			if (index >= files.length) {console.log("merged playdata", playdata); deleteproperties();}
+			if (index >= files.length) {
 
-			else {	var file = files[index]
+			    console.log ( "merged playdata" , playdata )
 
-				reader.onload = function(e) {
-					console.log(files[index].name, JSON.parse(reader.result))
-					playdata = playdata.concat(JSON.parse(reader.result));
-					document.getElementById("status").innerHTML += "LOADED DATA FROM FILE " + files[index].name + "</br>";
-					readFile(index+1);}
+			    adaptToScrubbler(playdata) }
 
-				reader.onprogress = function(e) {
-					var percentageRead = Math.floor((e.loaded / e.total) * 100);
-					document.getElementById("status").innerHTML += percentageRead + "% ";};
+			else {
 
-				reader.onerror = function() {
-					document.getElementById("status").innerHTML += "<br/>ERROR IN TRYING TO LOAD FILE";};
+                var file = files[index]
 
-				reader.readAsText(file);}}
+			    if (files[index].type == 'application/json') {
 
-		function deleteproperties() {
+					reader.onload = function(e) {
+						console.log (files[index].name , JSON.parse(reader.result))
+						playdata = playdata.concat(JSON.parse(reader.result))
+						document.getElementById("status").innerHTML += "loaded data from " + files[index].name + "</br>"
+						readFile(index+1) }
 
-			document.getElementById("status").innerHTML += "DELETING IRRELEVANT INFORMATION (LOCATION, SUFFLE, DEVICE AND SUCH)";
+					reader.onerror = function() {
+						document.getElementById("status").innerHTML += "<br/>error in trying to load a json file" }
 
-			playdata.forEach(function(property){
-				delete property.city;
-				delete property.conn_country;
-				delete property.episode_name;
-				delete property.episode_show_name;
-				delete property.incognito_mode;
-				delete property.ip_addr_decrypted;
-				delete property.latitude;
-				delete property.longitude;
-				delete property.metro_code;
-				delete property.offline;
-				delete property.offline_timestamp;
-				delete property.platform;
-				delete property.reason_start;
-				delete property.reason_end;
-				delete property.region;
-				delete property.shuffle;
-				delete property.skipped;
-				delete property.user_agent_decrypted;
-				delete property.username;});
+					reader.readAsText(file) }
 
-			console.log("cleaned playdata", playdata);
+			    else {
 
-			removeShortPlays();};
+					config = {
+						header: true,
+						transformHeader: (header => header.replace(/\s/g, '')),
+						complete: results => {playdata = playdata.concat(results.data); console.log("csv parsed playdata", playdata); readFile(index+1)} }
 
-		function removeShortPlays() {
+					Papa.parse(file, config) }}}
+		
+		function adaptToScrubbler(data) {
 
-			document.getElementById("status").innerHTML += "</br>REMOVING SONGS PLAYED FOR LESS THAN " + requiredPlayTime + " SECONDS";
+			document.getElementById("status").innerHTML += "</br>changing things so that <a href=\"https:github.com/coczero/Last.fm-Scrubbler-WPF\">Last.fm Scrubbler</a> can understand the streaming history";
+            
+            data = data.map(stream => ({
+            	artistName: stream.ArtistName,
+            	trackName: stream.ContentName,
+            	datetime: stream.EventStartTimestamp,
+                playDuration: stream.PlayDurationMilliseconds }))
+//             	stream.artistName: stream.master_metadata_album_artist_name
+//             	stream.albumName: stream.master_metadata_album_album_name
+//             	stream.trackName: stream.master_metadata_track_name
+//             	stream.datetime: stream.ts
+//              stream.playDuration: stream.ms_played 
 
-			playdata = playdata.filter(song => song.ms_played >= requiredPlayTime*1000);
-			playdata = playdata.filter(song => song.master_metadata_track_name != null);
-			//playdata = playdata.filter(song => song.master_metadata_album_artist_name != null);
-			//playdata = playdata.filter(song => song.master_metadata_album_album_name != null);
+           console.log("renamed playdata", data)
 
-			console.log("removed short plays from playdata", playdata);
+			removeShortPlays(data) }
 
-			sort();};
 
-		function sort() {
+		function removeShortPlays(data) {
 
-			document.getElementById("status").innerHTML += "</br>SORTING PLAYS BY DATE";
+			document.getElementById("status").innerHTML += "</br>removing songs played for less than " + requiredPlayDuration + " seconds"
 
-			playdata = playdata.sort((a,b) => Date.parse(a.ts) - Date.parse(b.ts));
+			data = data.filter(stream => stream.playDuration >= requiredPlayDuration*1000)
+			data = data.filter(stream => stream.trackName != (null || ""))
 
-			console.log("time sorted playdata", playdata);
+			console.log("removed short plays from playdata", data)
 
-			adaptToScrubbler();};
+			sort(data) }
 
-		function adaptToScrubbler() {
+		function sort(data) {
 
-			document.getElementById("status").innerHTML += "</br>CHANGING THINGS SO THAT <a href=\"https:github.com/coczero/Last.fm-Scrubbler-WPF\">Last.fm Scrubbler</a> CAN UNDERSTAND THE FILES";
+			document.getElementById("status").innerHTML += "</br>sorting plays by date"
 
-			playdata = playdata.map(({master_metadata_album_album_name, master_metadata_album_artist_name, master_metadata_track_name, ts}) => ({albumName:master_metadata_album_album_name, artistName:master_metadata_album_artist_name, trackName:master_metadata_track_name, datetime:ts}));
+			data = data.sort((a,b) => Date.parse(a.datetime) - Date.parse(b.datetime))
 
-			console.log("object properties updates in playdata", playdata);
+			console.log("time sorted playdata", data)
 
-			split();};
+			split(data) }
 
-		function split() {
+		function split(data) {
 
-			document.getElementById("status").innerHTML += "</br></br>SPLTTING DATA INTO " + Math.ceil(playdata.length/ importsPerDay) + " JSON FILES WITH <" +importsPerDay + " PLAYS EACH";
+			document.getElementById("status").innerHTML += "</br>splitting data into " + Math.ceil(data.length / importsPerDay) + " json files with <" + importsPerDay + " plays each";
 
 			const divide = function(array, size) {
-				if (!array.length) {
-					return [];}
-				const head = array.slice(0, size);
-				const tail = array.slice(size);
-			return [head, ...divide(tail, size)];};
+				if (!array.length) { return [] }
+				const head = array.slice(0, size)
+				const tail = array.slice(size)
+			return [head, ...divide(tail, size)] }
 
-			playdata = divide(playdata, importsPerDay);
+			data = divide(data, importsPerDay)
 
-			console.log("diversified playdata", playdata);
+			console.log("fragmented playdata", data)
 
-			writefiles(0);};
+			writeFiles(data) }
 
-		function writefiles(index) {
-			var jsonstring = JSON.stringify(playdata[index]);
-			var file = new Blob([JSON.stringify(playdata[index])], {type : 'application/json'});
+		function writeFiles(data) {
+            
+            for (const day of data) {
+            	var jsonstring = JSON.stringify(day)
+            	var file = new Blob([JSON.stringify(day)], {type : 'application/json'})
+            	var element = document.createElement('a')
+            	element.setAttribute('href', window.URL.createObjectURL(file))
+			    element.setAttribute('download', day[0].datetime)
+			    element.classList.add('file-output')
+			    document.body.appendChild(element) }
+			
+			createDownloadButton() }
 
-			var element = document.createElement('a');
-			element.setAttribute('href', window.URL.createObjectURL(file));
-			element.setAttribute('download', playdata[index][0].datetime);
-			element.style.display = 'none';
-			document.body.appendChild(element);
-			element.click();
-			document.body.removeChild(element);
-			createlink(index+1);};
+        function createDownloadButton() {
+			
+			links = document.getElementsByClassName('file-output')
 
-		function createlink(index) {
+			element = document.createElement('button')
+			element.innerHTML = 'download ' + links.length + ' files'
+            element.setAttribute('onclick', "downloadAll()")
+            document.body.appendChild(element) }
 
-			var element = document.createElement('button');
-			element.innerHTML = "DOWNLOAD THE DATA TO BE IMPORTED ON DAY " + (index+1);
-			element.onclick = function() {this.remove(); writefiles(index);};
-			document.body.appendChild(element)
-
-		};
-
-		readFile(0);
-
-	}
+		readFile(0) }
+		
+	function downloadAll() {for (link of links) {link.click()}}
 
 </script>
