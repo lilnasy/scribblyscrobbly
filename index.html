@@ -1,9 +1,10 @@
 <head>
 	<script src='https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.2.0/papaparse.min.js'></script>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.16.0/js/md5.min.js'></script>
 	<script>
 		function scribblyScrobbly(files) {
 
-			var streamdata = []
+			let streamdata = []
 
 			//songs played for shorter amount of time will be removed (seconds) 
 			const requiredPlayDuration = 30
@@ -13,7 +14,7 @@
 
 			document.getElementById("status").innerHTML += "</br>processing " + files.length + " file(s)"
 
-			var reader = new FileReader()
+			let reader = new FileReader()
 
 			function readFile(index) {
 
@@ -68,7 +69,7 @@
 				data = data.filter(stream => stream.playDuration >= requiredPlayDuration * 1000)
 				console.log("play duration filtered stream data", data)
 
-				data = data.filter(stream => stream.trackName != undefined)
+				data = data.filter(stream => stream.trackName != null)
 				console.log("removed streams without song names", data)
 
 				data = data.sort((a,b) => Date.parse(a.datetime) - Date.parse(b.datetime))
@@ -88,8 +89,8 @@
 			function writeFiles(data) {
 
 				for (const day of data) {
-					var file = new Blob( [JSON.stringify(day)] , { type: 'application/json' } )
-					var element = document.createElement('a')
+					let file = new Blob( [JSON.stringify(day)] , { type: 'application/json' } )
+					let element = document.createElement('a')
 					element.setAttribute('href', window.URL.createObjectURL(file))
 					element.setAttribute('download', day[0].datetime + '.json')
 					element.classList.add('file-output')
@@ -105,6 +106,40 @@
 				document.body.appendChild(element) }
 
 			readFile(0) }
+
+		const lastAPI = ''
+		const lastSecret = ''
+
+        	async function getSession(token) {
+			try {
+				const options = {
+					method: 'GET',
+					json: true }
+
+				let params  = {
+					method: 'auth.getSession',
+					token: token,
+					api_key: lastAPI,
+					format: 'json'}
+
+				let sig = ''
+				for (const key of Object.keys(params).sort()) {
+					if (key == ('format' || 'callback')) { continue }
+					sig += key + params[key] }
+				params['api_sig'] = md5(sig + lastSecret)
+
+				const reqURI = 'http://ws.audioscrobbler.com/2.0/?' + new URLSearchParams(params).toString()
+
+				fetch(reqURI, options)
+					.then(response => response.json())
+					.then(data => {
+						localStorage.setItem('sesssionKey', JSON.stringify(data.session.key))
+						localStorage.setItem('username', JSON.stringify(data.session.name))})}
+
+			catch (error) {console.error(error)} }
+
+		const queryKeys = new URLSearchParams(window.location.search)
+		if (queryKeys.has("token")) {getSession(queryKeys.get('token'))}
 	</script>
 </head>
 <body>
