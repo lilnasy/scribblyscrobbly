@@ -1,137 +1,119 @@
-<p>updated for file extension issue. Created by arsh#1221 <a href="https:www.last.fm/user/TedBundyVEVO" style="color: red;">LastFM</a> <a href="https:open.spotify.com/user/arshbunny" style="color: chartreuse;">Spotify</a></p>
-<p id="what-now">click choose files button and open the csv file</p>
-<input type="file" id="file-input" accept=".json,.csv" onchange="scribblyScrobbly(this.files)" multiple/>
-<p id="status">current status:</p>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.2.0/papaparse.min.js'></script>
-<script>
-	function scribblyScrobbly(files) {
-        
-        playdata = []
-                
-		//songs played for shorter amount of time will be removed (seconds) 
-	requiredPlayDuration = 30
+<head>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.2.0/papaparse.min.js'></script>
+	<script>
+		function scribblyScrobbly(files) {
 
-		//on last.fm you can scrobble 2800 tracks in a day, importing 2600 gives you room to scrobble 200 songs
-	importsPerDay = 2600
+			var streamdata = []
 
-	document.getElementById("status").innerHTML += "</br>processing " + files.length + " file(s)"
+			//songs played for shorter amount of time will be removed (seconds) 
+			const requiredPlayDuration = 30
 
-	var reader = new FileReader()
+			//on last.fm you can scrobble 2800 tracks in a day, importing 2600 gives you room to scrobble 200 songs
+			const importsPerDay = 2600
 
-	function readFile(index) {
+			document.getElementById("status").innerHTML += "</br>processing " + files.length + " file(s)"
 
-		if (index >= files.length) {
+			var reader = new FileReader()
 
-		    console.log ( "merged playdata" , playdata )
+			function readFile(index) {
 
-		    adaptToScrubbler(playdata) }
+				if (index >= files.length) {
 
-		else {
+					console.log("merged stream data", streamdata)
 
-			var file = files[index]
+					adaptToScrubbler(streamdata) }
+				
+				else {
 
-			if (files[index].type == 'application/json') {
+					let file = files[index]
 
-			reader.onload = function(e) {
-				console.log (files[index].name , JSON.parse(reader.result))
-				playdata = playdata.concat(JSON.parse(reader.result))
-				document.getElementById("status").innerHTML += "loaded data from " + files[index].name + "</br>"
-				readFile(index+1) }
+					if (files[index].type == 'application/json') {
 
-			reader.onerror = function() {
-				document.getElementById("status").innerHTML += "<br/>error in trying to load a json file" }
+						reader.onload = function(e) {
+							console.log(files[index].name, JSON.parse(reader.result))
+							streamdata = streamdata.concat(JSON.parse(reader.result))
+							document.getElementById("status").innerHTML += "loaded data from " + files[index].name + "</br>"
+							readFile(index + 1) }
 
-			reader.readAsText(file) }
+						reader.onerror = function() {
+							document.getElementById("status").innerHTML += "<br/>error in trying to load a json file" }
 
-	    		else {
+						reader.readAsText(file) }
 
-			config = {
-				header: true,
-				transformHeader: (header => header.replace(/\s/g, '')),
-				complete: results => {playdata = playdata.concat(results.data); console.log("csv parsed playdata", playdata); readFile(index+1)} }
+					else {
 
-			Papa.parse(file, config) }}}
+						config = {
+							header: true,
+							transformHeader: (header => header.replace(/\s/g, '')),
+							complete: results => {
+								streamdata = streamdata.concat(results.data)
+								console.log("csv parsed stream data", streamdata)
+								readFile(index + 1) } }
 
-	function adaptToScrubbler(data) {
+						Papa.parse(file, config) } } }
 
-		document.getElementById("status").innerHTML += "</br>changing things so that <a href=\"https:github.com/coczero/Last.fm-Scrubbler-WPF\">Last.fm Scrubbler</a> can understand the streaming history";
+			function adaptToScrubbler(data) {
 
-		data = data.map(stream => ({
-			artistName: stream.ArtistName,
-			trackName: stream.ContentName,
-			datetime: stream.EventStartTimestamp,
-			playDuration: stream.PlayDurationMilliseconds }))
-//			stream.artistName: stream.master_metadata_album_artist_name
-//			stream.albumName: stream.master_metadata_album_album_name
-//			stream.trackName: stream.master_metadata_track_name
-//			stream.datetime: stream.ts
-//			stream.playDuration: stream.ms_played 
+				document.getElementById("status").innerHTML += "</br>changing things so that <a href=\"https:github.com/coczero/Last.fm-Scrubbler-WPF\">Last.fm Scrubbler</a> can understand the streaming history";
 
-		console.log("renamed playdata", data)
+				data = data.map(stream => ({
+					artistName: stream.ArtistName? stream.ArtistName : stream.master_metadata_album_artist_name,
+					albumName: stream.master_metadata_album_album_name,
+					trackName: stream.ContentName? stream.ContentName : stream.master_metadata_track_name,
+					datetime: stream.EventStartTimestamp? stream.EventStartTimestamp : stream.ts,
+					playDuration: stream.PlayDurationMilliseconds? stream.PlayDurationMilliseconds : stream.ms_played 
+				}))
+				console.log("simplified stream data", data)
 
-		removeShortPlays(data) }
+				data = data.filter(stream => stream.playDuration >= requiredPlayDuration * 1000)
+				console.log("play duration filtered stream data", data)
 
-	function removeShortPlays(data) {
+				data = data.filter(stream => stream.trackName != undefined)
+				console.log("removed streams without song names", data)
 
-		document.getElementById("status").innerHTML += "</br>removing songs played for less than " + requiredPlayDuration + " seconds"
+				data = data.sort((a,b) => Date.parse(a.datetime) - Date.parse(b.datetime))
+				console.log("sorted stream data", data)
 
-		data = data.filter(stream => stream.playDuration >= requiredPlayDuration*1000)
-		data = data.filter(stream => stream.trackName != (null || ""))
+				const divide = function(array, size) {
+					if (!array.length) { return [] }
+					const head = array.slice(0, size)
+					const tail = array.slice(size)
+					return [head, ...divide(tail, size)] }
 
-		console.log("removed short plays from playdata", data)
+				data = divide(data, importsPerDay)
+				console.log("fragmented stream data", data)
 
-		sort(data) }
+				writeFiles(data) }
 
-	function sort(data) {
+			function writeFiles(data) {
 
-		document.getElementById("status").innerHTML += "</br>sorting plays by date"
+				for (const day of data) {
+					var file = new Blob( [JSON.stringify(day)] , { type: 'application/json' } )
+					var element = document.createElement('a')
+					element.setAttribute('href', window.URL.createObjectURL(file))
+					element.setAttribute('download', day[0].datetime + '.json')
+					element.classList.add('file-output')
+					document.body.appendChild(element) }
 
-		data = data.sort((a,b) => Date.parse(a.datetime) - Date.parse(b.datetime))
+				createDownloadButton() }
 
-		console.log("time sorted playdata", data)
+			function createDownloadButton() {
 
-		split(data) }
+				element = document.createElement('button')
+				element.innerHTML = 'download ' + document.getElementsByClassName('file-output').length + ' files'
+				element.setAttribute('onclick', "for (link of document.getElementsByClassName('file-output')) { link.click() }")
+				document.body.appendChild(element) }
 
-	function split(data) {
-
-		document.getElementById("status").innerHTML += "</br>splitting data into " + Math.ceil(data.length / importsPerDay) + " json files with <" + importsPerDay + " plays each";
-
-		const divide = function(array, size) {
-		if (!array.length) { return [] }
-			const head = array.slice(0, size)
-			const tail = array.slice(size)
-		return [head, ...divide(tail, size)] }
-
-		data = divide(data, importsPerDay)
-
-		console.log("fragmented playdata", data)
-
-		writeFiles(data) }
-
-	function writeFiles(data) {
-            
-		for (const day of data) {
-			var jsonstring = JSON.stringify(day)
-			var file = new Blob([JSON.stringify(day)], {type : 'application/json'})
-			var element = document.createElement('a')
-			element.setAttribute('href', window.URL.createObjectURL(file))
-			element.setAttribute('download', day[0].datetime + '.json')
-			element.classList.add('file-output')
-			document.body.appendChild(element) }
-			
-		createDownloadButton() }
-
-        function createDownloadButton() {
-			
-		links = document.getElementsByClassName('file-output')
-
-		element = document.createElement('button')
-		element.innerHTML = 'download ' + links.length + ' files'
-            	element.setAttribute('onclick', "downloadAll()")
-            	document.body.appendChild(element) }
-
-	readFile(0) }
-		
-	function downloadAll() {for (link of links) {link.click()}}
-
-</script>
+			readFile(0) }
+	</script>
+</head>
+<body>
+	<p>
+		Created by arsh#1221
+		<a href="https:www.last.fm/user/TedBundyVEVO" style="color: red;">LastFM</a>
+		<a href="https:open.spotify.com/user/arshbunny" style="color: chartreuse;">Spotify</a>
+	</p>
+	<p id="what-now">click choose files button and open csv and/or json files</p>
+	<input type="file" id="file-input" accept=".json,.csv" onchange="scribblyScrobbly(this.files)" multiple/>
+	<p id="status">current status:</p>
+</body>
