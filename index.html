@@ -62,8 +62,8 @@
 				this.push(copy.splice(0, divisor))
 			return this }
 	</script>
-	<script defer src='https:cdn.jsdelivr.net/npm/file-saver'></script></script>
-	<script defer src='https:cdn.jsdelivr.net/npm/d3-dsv'></script>
+	<script defer src='https://cdn.jsdelivr.net/npm/file-saver'></script></script>
+	<script defer src='https://cdn.jsdelivr.net/npm/d3-dsv'></script>
 	<script defer>
 		const requiredPlayDuration = 30
 		const importsPerDay = 2600
@@ -111,9 +111,9 @@
 			return streams }
 			
 		let createDownloadButton = (streams) => {
-			downloadButton = document.querySelector('button')
-			downloadButton.innerText = '👇'
-			downloadButton.addEventListener('click', download(streams)) }
+			button = document.querySelector('button')
+			button.innerText = '👇'
+			button.addEventListener('click', download(streams)) }
 			
 		let download = (streams) => {
 			streams.divideBy(importsPerDay).forEach(day => {
@@ -133,8 +133,8 @@
 	</button>
 	<author>
 		created by arsh#1221
-		<a href='https:www.last.fm/user/TedBundyVEVO' style='color: #d50'>LastFM</a>
-		<a href='https:open.spotify.com/user/arshbunny' style='color: #2d6'>Spotify</a>
+		<a href='https://www.last.fm/user/TedBundyVEVO' style='color: #d50'>LastFM</a>
+		<a href='https://open.spotify.com/user/arshbunny' style='color: #2d6'>Spotify</a>
 	</author>
 </body>
 </html>
