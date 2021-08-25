@@ -63,20 +63,17 @@
 				this.push(copy.splice(0, divisor))
 			return this }
 	</script>
-	<script defer src='https://cdn.jsdelivr.net/npm/file-saver'></script></script>
 	<script defer src='https://cdn.jsdelivr.net/npm/d3-dsv'></script>
 	<script defer>
 		const requiredPlayDuration = 30
 		const importsPerDay = 2600
 
 		let read = async (files) => {
-// 			console.log(`processing ${files.length} files`, files)
+			
 			let streams = await Promise.all( [...files].map( file => parse(file) ) ).then(array => array.flat())
-// 			console.log('merged streams', streams)
 			
 			streams = streams.filter( stream => stream.playDuration >= requiredPlayDuration * 1000 && stream.trackName != null && stream.trackName != '' )
 							.sort( (a,b) => Date.parse(a.datetime) - Date.parse(b.datetime) )
-// 			console.log('streams sorted by date', streams)
 
 			if (streams.length <= 0) document.querySelector('circle').innerText = '😶'
 			else {
@@ -90,7 +87,9 @@
 				createDownloadButton(streams) } }
 		
 		let parse = async (file) => {
+			
 			const text = await file.text() 
+			
 			switch (file.extension) {
 				case 'csv':
 					return d3.csvParse(text, stream => ({
