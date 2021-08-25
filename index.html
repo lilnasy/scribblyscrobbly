@@ -36,7 +36,7 @@
 			width: 100px;
 			border-radius: 50% }
 
-		output, input, output {
+		input, output {
 			cursor: pointer;
 			position: absolute;
 			font-size: 0;
@@ -64,9 +64,15 @@
 			return this }
 	</script>
 	<script defer src='https://cdn.jsdelivr.net/npm/d3-dsv'></script>
-	<script defer>
+	<script type='module'>
+		import {downloadZip as zip} from 'https://cdn.jsdelivr.net/npm/client-zip'
+		
 		const requiredPlayDuration = 30
 		const importsPerDay = 2600
+
+		document.querySelector('input').onchange = function(e) {
+			read(e.target.files)
+			e.target.remove() }
 
 		let read = async (files) => {
 			
@@ -75,20 +81,24 @@
 			streams = streams.filter( stream => stream.playDuration >= requiredPlayDuration * 1000 && stream.trackName != null && stream.trackName != '' )
 							.sort( (a,b) => Date.parse(a.datetime) - Date.parse(b.datetime) )
 
-			if (streams.length <= 0) document.querySelector('circle').innerText = '😶'
-			else {
-				streams.divideBy(importsPerDay).forEach(day => {
-					let file = new File( [JSON.stringify(day)], day[0].datetime + '.json', {type: 'application/json'} )
-					let a = document.createElement('a')
-					a.setAttribute('href', window.URL.createObjectURL(file))
-					a.setAttribute('download', day[0].datetime + '.json')
-					document.body.appendChild(a) })
+			if (streams.length > 0) {
+				let files = streams.divideBy(importsPerDay).map(day => new File( [JSON.stringify(day)], day[0].datetime + '.json', {type: 'application/json'} ))
+				let scribbly = await zip(files).blob()
 
-				createDownloadButton(streams) } }
+				let a = document.createElement('a')
+				a.href = window.URL.createObjectURL(scribbly)
+				a.download = 'scribbly.zip'
+
+				let output = document.createElement('output')
+				output.onclick = () => download(a)
+				document.querySelector('circle').innerText = '👇'
+				document.querySelector('circle').appendChild(output) } 
+			
+			else { document.querySelector('circle').innerText = '😶' } }
 		
 		let parse = async (file) => {
 			
-			const text = await file.text() 
+			let text = await file.text() 
 			
 			switch (file.extension) {
 				case 'csv':
@@ -109,20 +119,14 @@
 				default:
 					return [] } }
 		
-		let download = () => {				
-			document.querySelectorAll('a[download]').forEach( x => x.click() )
+		let download = (a) => {				
+			a.click()
 			document.querySelector('circle').innerText = '👍' }
-			
-		let createDownloadButton = (streams) => {
-			output = document.createElement('output')
-			output.setAttribute('onclick', 'download()')
-			document.querySelector('circle').innerText = '👇'
-			document.querySelector('circle').appendChild(output) }
 	</script>
 </head>
 <body>
 	<circle>
-		☝️<input type='file' accept='.json,.csv' onchange='read(this.files); this.remove()' multiple/>
+		☝️<input type='file' accept='.json,.csv' multiple/>
 	</circle>
 	<author>
 		created by arsh#1221
