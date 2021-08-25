@@ -7,42 +7,43 @@
 	<style>
 		body {
 			font-family: sans-serif;
-			display: flex;
 			height: 100vh;
 			width: 100vw;
 			margin: 0;
-			justify-content: center;
-			align-items: center;
 			text-rendering: optimizeLegibility;
 			overflow: hidden }
+		
+		body, circle {
+			display: flex;
+			justify-content: center;
+			align-items: center }
 
-		button{
-			border: 0;
-			padding: 0;
-			margin: 50px;
+		circle {
 			font-size: 48px;
 			position: relative;
 			transition: 0.2s ease-out;
 			background: white;
 			filter: drop-shadow(20px 20px 20px #b4f8) }
 		
-		button:hover { transform: scale(1.05) }
+		circle:hover { transform: scale(1.05) }
+
+		output {
+			border: 0;
+			background: 0 }
 		
-		button, input {
-			cursor: pointer;
+		circle, input, output {
 			height: 100px;
 			width: 100px;
 			border-radius: 50% }
 
-		input {
+		output, input, output {
+			cursor: pointer;
 			position: absolute;
-			top: 0;
-			left: 0;
 			font-size: 0;
 			z-index: 1 }
-
-		input::file-selector-button {display: none}
 		
+		input::file-selector-button {display: none}
+
 		caution {
 			position: absolute;
 			top: 16px }
@@ -69,12 +70,24 @@
 		const importsPerDay = 2600
 
 		let read = async (files) => {
-			console.log(`processing ${files.length} files`, files)
+// 			console.log(`processing ${files.length} files`, files)
 			let streams = await Promise.all( [...files].map( file => parse(file) ) ).then(array => array.flat())
-			console.log('merged streams', streams)
-			streams = await tidyUp(streams)
-			if (streams.length <= 0) document.querySelector('button').innerText = '😶'
-			else createDownloadButton(streams) }
+// 			console.log('merged streams', streams)
+			
+			streams = streams.filter( stream => stream.playDuration >= requiredPlayDuration * 1000 && stream.trackName != null && stream.trackName != '' )
+							.sort( (a,b) => Date.parse(a.datetime) - Date.parse(b.datetime) )
+// 			console.log('streams sorted by date', streams)
+
+			if (streams.length <= 0) document.querySelector('circle').innerText = '😶'
+			else {
+				streams.divideBy(importsPerDay).forEach(day => {
+					let file = new File( [JSON.stringify(day)], day[0].datetime + '.json', {type: 'application/json'} )
+					let a = document.createElement('a')
+					a.setAttribute('href', window.URL.createObjectURL(file))
+					a.setAttribute('download', day[0].datetime + '.json')
+					document.body.appendChild(a) })
+
+				createDownloadButton(streams) } }
 		
 		let parse = async (file) => {
 			const text = await file.text() 
@@ -97,40 +110,24 @@
 				default:
 					return [] } }
 		
-		let tidyUp = async (streams) => {
-			
-			streams = streams.filter(stream => stream.playDuration >= requiredPlayDuration * 1000)
-			console.log('play duration filtered streams', streams)
-			
-			streams = streams.filter(stream => stream.trackName != null && stream.trackName != '')
-			console.log('removed streams without song names', streams)
-			
-			streams = streams.sort((a,b) => Date.parse(a.datetime) - Date.parse(b.datetime))
-			console.log('streams sorted by date', streams)
-
-			return streams }
+		let download = () => {				
+			document.querySelectorAll('a[download]').forEach( x => x.click() )
+			document.querySelector('circle').innerText = '👍' }
 			
 		let createDownloadButton = (streams) => {
-			button = document.querySelector('button')
-			button.innerText = '👇'
-			button.addEventListener('click', download(streams)) }
-			
-		let download = (streams) => {
-			streams.divideBy(importsPerDay).forEach(day => {
-				console.log('new day', day[0].datetime)
-				let file = new File( [JSON.stringify(day)], day[0].datetime + '.json', {type: 'application/json'} ) 
-				saveAs(file) })
-
-			document.querySelector('button').innerText = '👍' }
+			output = document.createElement('output')
+			output.setAttribute('onclick', 'download()')
+			document.querySelector('circle').innerText = '👇'
+			document.querySelector('circle').appendChild(output) }
 	</script>
 </head>
 <body>
 	<caution>
 		saves upto 10 files at once rn, ill figure something out soon
 	</caution>
-	<button>
+	<circle>
 		☝️<input type='file' accept='.json,.csv' onchange='read(this.files); this.remove()' multiple/>
-	</button>
+	</circle>
 	<author>
 		created by arsh#1221
 		<a href='https://www.last.fm/user/TedBundyVEVO' style='color: #d50'>LastFM</a>
