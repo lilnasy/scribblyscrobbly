@@ -73,28 +73,6 @@
 		document.querySelector('input').onchange = function(e) {
 			read(e.target.files)
 			e.target.remove() }
-
-		let read = async (files) => {
-			
-			let streams = await Promise.all( [...files].map( file => parse(file) ) ).then(array => array.flat())
-			
-			streams = streams.filter( stream => stream.playDuration >= requiredPlayDuration * 1000 && stream.trackName != null && stream.trackName != '' )
-							.sort( (a,b) => Date.parse(a.datetime) - Date.parse(b.datetime) )
-
-			if (streams.length > 0) {
-				let files = streams.divideBy(importsPerDay).map(day => new File( [JSON.stringify(day)], day[0].datetime + '.json', {type: 'application/json'} ))
-				let scribbly = await zip(files).blob()
-
-				let a = document.createElement('a')
-				a.href = window.URL.createObjectURL(scribbly)
-				a.download = 'scribbly.zip'
-
-				let output = document.createElement('output')
-				output.onclick = () => download(a)
-				document.querySelector('circle').innerText = '👇'
-				document.querySelector('circle').appendChild(output) } 
-			
-			else { document.querySelector('circle').innerText = '😶' } }
 		
 		let parse = async (file) => {
 			
@@ -105,23 +83,43 @@
 					return d3.csvParse(text, stream => ({
 						artistName: stream['Artist Name'],
 						trackName: stream['Content Name'],
-						datetime: stream['Event Start Timestamp'],
-						playDuration: +stream['Play Duration Milliseconds'] }))
+						time: stream['Event Start Timestamp'],
+						duration: +stream['Play Duration Milliseconds'] }))
 				
 				case 'json':
 					return JSON.parse(text).map(stream => ({
 						artistName: stream.master_metadata_album_artist_name,
 						albumName: stream.master_metadata_album_album_name,
 						trackName: stream.master_metadata_track_name,
-						datetime: stream.ts,
-						playDuration: stream.ms_played }))
+						time: stream.ts,
+						duration: stream.ms_played }))
 				
 				default:
-					return [] } }
-		
-		let download = (a) => {				
-			a.click()
-			document.querySelector('circle').innerText = '👍' }
+					return [] }
+			
+		let read = async (files) => {
+			
+			let streams = await Promise.all( [...files].map( file => parse(file) ) ).then(array => array.flat())
+			
+			streams = streams.filter( stream => stream.duration >= requiredPlayDuration * 1000 && stream.artistName != null && stream.artistName != '' && stream.trackName != null && stream.trackName != '' )
+							.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
+
+			if (streams.length > 0) {
+				let files = streams.divideBy(importsPerDay).map(day => new File( [JSON.stringify(day)], day[0].time + '.json', {type: 'application/json'} ))
+				let scribbly = await zip(files).blob()
+
+				let a = document.createElement('a')
+				a.href = window.URL.createObjectURL(scribbly)
+				a.download = 'scribbly.zip'
+
+				let output = document.createElement('output')
+				output.onclick = () => {				
+					a.click()
+					document.querySelector('circle').innerText = '👍' }
+				document.querySelector('circle').innerText = '👇'
+				document.querySelector('circle').appendChild(output) } 
+			
+			else { document.querySelector('circle').innerText = '😶' } } }
 	</script>
 </head>
 <body>
