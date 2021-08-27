@@ -17,70 +17,63 @@
 			display: flex;
 			justify-content: center;
 			align-items: center }
-
-		circle {
-			font-size: 48px;
-			position: relative;
-			transition: 0.2s ease-out;
-			background: white;
-			filter: drop-shadow(20px 20px 20px #b4f8) }
 		
+		circle { font-size: 48px; transition: 0.2s ease-out }
+				
 		circle:hover { transform: scale(1.05) }
-
-		output {
-			border: 0;
-			background: 0 }
 		
-		circle, input, output {
+		circle, circle:before, input {
 			height: 100px;
 			width: 100px;
 			border-radius: 50% }
-
-		input, output {
-			cursor: pointer;
+		
+		circle:before {
+			content: '';
 			position: absolute;
+			background: white;
+			filter: drop-shadow(4px 8px 12px #f008) drop-shadow(8px 4px 12px #00f8);
+			animation: rotate 60s linear infinite;
+			z-index: -1 }
+		
+		[state=download], input { cursor: pointer }
+		[state=busy]:before { animation-duration: 2s }
+		
+		input {
 			font-size: 0;
+			position: absolute;
 			z-index: 1 }
 		
-		input::file-selector-button {display: none}
+		input::file-selector-button { display: none }
 
-		caution {
-			position: absolute;
-			top: 16px }
-
-		author {
-			position: absolute;
-			bottom: 16px }
+		@keyframes rotate { to { transform: rotate(360deg) } }
+				
+		author {position: absolute; bottom: 16px; opacity: 0.7}
 	</style>
-	<script>
+	<script type='module'>
+// 		const requiredPlayDuration = 30
+		const importsPerDay = 2600
+
+		import {csvParse} from 'https://cdn.jsdelivr.net/npm/d3-dsv@3/+esm'
+		import {downloadZip as clientZip} from 'https://cdn.jsdelivr.net/npm/client-zip@2/+esm'
+		import {proxy as workly} from 'https://cdn.jsdelivr.net/npm/workly@1/+esm'
+
 		Object.defineProperty(File.prototype, 'extension', {
 			get: function() { return this.name.substring(this.name.lastIndexOf('.') + 1) } } )
 		
 		Array.prototype.divideBy = function (divisor) {
-			const copy = this.slice(0)
-			this.length = 0
-			while (copy.length)
-				this.push(copy.splice(0, divisor))
-			return this }
-	</script>
-	<script defer src='https://cdn.jsdelivr.net/npm/d3-dsv'></script>
-	<script type='module'>
-		import {downloadZip as zip} from 'https://cdn.jsdelivr.net/npm/client-zip'
+			let x = []
+			while (this.length) x.push(this.splice(0, divisor))
+			return x }
 		
-		const requiredPlayDuration = 30
-		const importsPerDay = 2600
+		let circle = (emoji, state='') => { document.querySelector('circle').innerText = emoji; document.querySelector('circle').setAttribute('state', state) }
 
-		document.querySelector('input').onchange = function(e) {
-			read(e.target.files)
-			e.target.remove() }
-		
 		let parse = async (file) => {
 			
 			let text = await file.text() 
 			
 			switch (file.extension) {
 				case 'csv':
-					return d3.csvParse(text, stream => ({
+					return csvParse(text, stream => ({
 						artistName: stream['Artist Name'],
 						trackName: stream['Content Name'],
 						time: stream['Event Start Timestamp'],
@@ -97,37 +90,48 @@
 				default:
 					return [] } }
 			
-		let read = async (files) => {
+		let scrobbly = async (files) => {
 			
-			let streams = await Promise.all( [...files].map( file => parse(file) ) ).then(array => array.flat())
+			let filter = (streams) => streams.filter( stream => stream.duration >= 30 * 1000 && stream.artistName != null && stream.artistName != '' && stream.trackName != null && stream.trackName != '' )
 			
-			streams = streams.filter( stream => stream.duration >= requiredPlayDuration * 1000 && stream.artistName != null && stream.artistName != '' && stream.trackName != null && stream.trackName != '' )
-							.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
+			let sort = (streams) => streams.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
 
+			return await Promise.all( [...files].map( file => parse(file) ) )
+				.then( streams => streams.flat() )
+				.then( streams => workly(filter)(streams) )
+				.then( streams => workly(sort)(streams) ) }
+
+		let scribbly = async (promise) => {
+			
+			let streams = await promise
+			
 			if (streams.length > 0) {
+				
 				let files = streams.divideBy(importsPerDay).map(day => new File( [JSON.stringify(day)], day[0].time.replace(/:/g, '') + '.json', {type: 'application/json'} ))
-				let scribbly = await zip(files).blob()
+				
+				let zip = await clientZip(files).blob()
 
-				let a = document.createElement('a')
-				a.href = window.URL.createObjectURL(scribbly)
-				a.download = 'scribbly.zip'
-
-				let output = document.createElement('output')
-				output.onclick = () => {				
-					a.click()
-					document.querySelector('circle').innerText = '👍' }
-				document.querySelector('circle').innerText = '👇'
-				document.querySelector('circle').appendChild(output) } 
+				circle('👇', 'download')
+				
+				document.querySelector('circle').onclick = (event) => {
+					event.target.onclick = null
+					location.assign( URL.createObjectURL(zip) )
+					circle('👍') } } 
 			
-			else { document.querySelector('circle').innerText = '😶' } }
+			else circle('😶') }
+		
+		document.querySelector('input').onchange = (event) => {
+			scribbly(scrobbly(event.target.files))
+			circle('🧍', 'busy') }
 	</script>
 </head>
 <body>
 	<circle>
-		☝️<input type='file' accept='.json,.csv' multiple/>
+		☝️
+		<input type='file' accept='.json,.csv' multiple/>
 	</circle>
 	<author>
-		created by arsh#1221
+		made by arsh#1221
 		<a href='https://www.last.fm/user/TedBundyVEVO' style='color: #d50'>LastFM</a>
 		<a href='https://open.spotify.com/user/arshbunny' style='color: #2d6'>Spotify</a>
 	</author>
