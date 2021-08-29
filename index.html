@@ -37,6 +37,8 @@
 		
 		[state=download], input { cursor: pointer }
 		[state=busy]:before { animation-duration: 2s }
+
+		@keyframes rotate { to { transform: rotate(360deg) } }
 		
 		input {
 			font-size: 0;
@@ -44,8 +46,6 @@
 			z-index: 1 }
 		
 		input::file-selector-button { display: none }
-
-		@keyframes rotate { to { transform: rotate(360deg) } }
 				
 		author {position: absolute; bottom: 16px; opacity: 0.7}
 	</style>
@@ -96,10 +96,10 @@
 			
 			let sort = (streams) => streams.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
 
-			return await Promise.all( [...files].map( file => parse(file) ) )
+			return await Promise.all( [...files].map(parse) )
 				.then( streams => streams.flat() )
-				.then( streams => workly(filter)(streams) )
-				.then( streams => workly(sort)(streams) ) }
+				.then( workly(filter) )
+				.then( workly(sort) ) }
 
 		let scribbly = async (promise) => {
 			
