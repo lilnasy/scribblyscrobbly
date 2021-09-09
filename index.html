@@ -77,7 +77,7 @@
 						artistName: stream['Artist Name'],
 						trackName: stream['Content Name'],
 						time: stream['Event Start Timestamp'],
-						duration: +stream['Play Duration Milliseconds'] }))
+						duration: stream['Play Duration Milliseconds'] }))
 				
 				case 'json':
 					return JSON.parse(text).map(stream => ({
@@ -85,7 +85,7 @@
 						albumName: stream.master_metadata_album_album_name,
 						trackName: stream.master_metadata_track_name,
 						time: stream.ts,
-						duration: stream.ms_played }))
+						duration: stream.ms_played.toString() }))
 				
 				default:
 					return [] } }
