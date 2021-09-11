@@ -50,37 +50,36 @@
 		author {position: absolute; bottom: 16px; opacity: 0.7}
 	</style>
 	<script type='module'>
-// 		const requiredPlayDuration = 30
-		const importsPerDay = 2600
-
 		import {csvParse} from 'https://cdn.jsdelivr.net/npm/d3-dsv@3/+esm'
 		import {downloadZip as clientZip} from 'https://cdn.jsdelivr.net/npm/client-zip@2/+esm'
 		import {proxy as workly} from 'https://cdn.jsdelivr.net/npm/workly@1/+esm'
 
 		Object.defineProperty(File.prototype, 'extension', {
-			get: function() { return this.name.substring(this.name.lastIndexOf('.') + 1) } } )
+			get: function() { return this.name.split('.').pop() } })
 		
 		Array.prototype.divideBy = function (divisor) {
 			let x = []
 			while (this.length) x.push(this.splice(0, divisor))
 			return x }
 		
-		let circle = (emoji, state='') => { document.querySelector('circle').innerText = emoji; document.querySelector('circle').setAttribute('state', state) }
+		const unio = emoji => fetch('https://unioanalytics.com/api/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({referrer:document.referrer,page:location.href,screen_resolution:screen.width+'x'+screen.height,event:emoji})})
 
-		let parse = async (file) => {
-			
-			let text = await file.text() 
-			
+		const circle = (emoji, state='') => {
+			document.querySelector('circle').innerText = emoji
+			document.querySelector('circle').setAttribute('state', state)
+			unio(emoji) }
+		
+		const parse = async file => {
 			switch (file.extension) {
 				case 'csv':
-					return csvParse(text, stream => ({
+					return csvParse(await file.text(), stream => ({
 						artistName: stream['Artist Name'],
 						trackName: stream['Content Name'],
 						time: stream['Event Start Timestamp'],
 						duration: stream['Play Duration Milliseconds'] }))
 				
 				case 'json':
-					return JSON.parse(text).map(stream => ({
+					return JSON.parse(await file.text()).map(stream => ({
 						artistName: stream.master_metadata_album_artist_name,
 						albumName: stream.master_metadata_album_album_name,
 						trackName: stream.master_metadata_track_name,
@@ -90,26 +89,26 @@
 				default:
 					return [] } }
 			
-		let scrobbly = async (files) => {
+		const scrobbly = async files => {
 			
-			let filter = (streams) => streams.filter( stream => stream.duration >= 30 * 1000 && stream.artistName != null && stream.artistName != '' && stream.trackName != null && stream.trackName != '' )
+			const filter = streams => streams.filter( stream => stream.duration >= 30 * 1000 && stream.artistName != null && stream.artistName != '' && stream.trackName != null && stream.trackName != '' )
 			
-			let sort = (streams) => streams.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
+			const sort = streams => streams.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
 
-			return await Promise.all( [...files].map(parse) )
+			return Promise.all( [...files].map(parse) )
 				.then( streams => streams.flat() )
 				.then( workly(filter) )
 				.then( workly(sort) ) }
 
-		let scribbly = async (promise) => {
-			
-			let streams = await promise
-			
+		const scribbly = async streams => {
+
+			streams = await streams
+
 			if (streams.length > 0) {
 				
-				let files = streams.divideBy(importsPerDay).map(day => new File( [JSON.stringify(day)], day[0].time.replace(/:/g, '') + '.json', {type: 'application/json'} ))
+				const files = streams.divideBy(2600).map(day => new File( [JSON.stringify(day)], day[0].time.replaceAll(':', '') + '.json', {type: 'application/json'} ))
 				
-				let zip = await clientZip(files).blob()
+				const zip = await clientZip(files).blob()
 
 				circle('👇', 'download')
 				
@@ -123,9 +122,9 @@
 		document.querySelector('input').onchange = (event) => {
 			scribbly(scrobbly(event.target.files))
 			circle('🧍‍♀️', 'busy') }
+		
+		unio('👋')
 	</script>
-	<script>if(!sessionStorage.getItem("_swa")&&document.referrer.indexOf(location.protocol+"//"+location.host)!== 0){fetch("https://counter.dev/track?"+new URLSearchParams({referrer:document.referrer,screen:screen.width+"x"+screen.height,user:"bignasx",utcoffset:"0"}))};sessionStorage.setItem("_swa","1");</script>
-	<script>if(!sessionStorage.getItem('_unio')){fetch('https://unioanalytics.com/api/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({referrer:document.referrer,page:location.href,screen_resolution:screen.width+'x'+screen.height}),});sessionStorage.setItem('_unio','1')}</script>
 </head>
 <body>
 	<circle>
