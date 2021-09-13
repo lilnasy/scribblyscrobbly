@@ -62,7 +62,7 @@
 			while (this.length) x.push(this.splice(0, divisor))
 			return x }
 		
-		const unio = emoji => fetch('https://unioanalytics.com/api/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({referrer:document.referrer,page:location.href+emoji,screen_resolution:screen.width+'x'+screen.height})})
+		const unio = emoji => fetch('https://unioanalytics.com/api/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({referrer:document.referrer,page:location.href,screen_resolution:screen.width+'x'+screen.height})})
 
 		const circle = (emoji, state='') => {
 			document.querySelector('circle').innerText = emoji
