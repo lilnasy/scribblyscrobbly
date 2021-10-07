@@ -103,6 +103,7 @@
 		const scribbly = async streams => {
 
 			streams = await streams
+			streams.forEach(stream => delete stream.duration)
 
 			if (streams.length > 0) {
 				
