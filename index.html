@@ -54,29 +54,37 @@
 		import {downloadZip as clientZip} from 'https://cdn.jsdelivr.net/npm/client-zip@2/+esm'
 		import {proxy as workly} from 'https://cdn.jsdelivr.net/npm/workly@1/+esm'
 
-		Object.defineProperty(File.prototype, 'extension', {
-			get: function() { return this.name.split('.').pop() } })
+		document.querySelector('input').onchange = event => {
+			scribbly(scrobbly(event.target.files))
+			circle('🧍‍♀️', 'busy') }
 		
-		Array.prototype.divideBy = function (divisor) {
-			let x = []
-			while (this.length) x.push(this.splice(0, divisor))
-			return x }
-		
-		const unio = emoji => fetch('https://unioanalytics.com/api/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({referrer:document.referrer,page:location.href+emoji,screen_resolution:screen.width+'x'+screen.height})})
+		unio('👋')
 
-		const circle = (emoji, state='') => {
+		const filterAndSortWorker = workly(filterAndSort)
+				
+		function unio (emoji) { fetch('https://unioanalytics.com/api/event', {
+						method: 'POST',
+						headers: { 'Content-Type':'application/json' },
+						body: JSON.stringify({
+							referrer: document.referrer,
+							page: location.href + emoji,
+							screen_resolution: screen.width + 'x' + screen.height }) }) }
+
+		function circle (emoji, state='') {
 			document.querySelector('circle').innerText = emoji
 			document.querySelector('circle').setAttribute('state', state)
 			unio(emoji) }
+
+		function extension (file) { return file.name.split('.').pop() }
 		
-		const parse = async file => {
-			switch (file.extension) {
+		async function parse (file) {
+			switch ( extension(file) ) {
 				case 'csv':
 					return csvParse(await file.text(), stream => ({
 						artistName: stream['Artist Name'],
-						trackName: stream['Content Name'],
+						trackName: stream['Content Name'] || stream['Song Name'],
 						time: stream['Event Start Timestamp'],
-						duration: stream['Play Duration Milliseconds'] }))
+						duration: Number(stream['Play Duration Milliseconds']) }))
 				
 				case 'json':
 					return JSON.parse(await file.text()).map(stream => ({
@@ -84,47 +92,57 @@
 						albumName: stream.master_metadata_album_album_name,
 						trackName: stream.master_metadata_track_name,
 						time: stream.ts,
-						duration: stream.ms_played.toString() }))
+						duration: Number(stream.ms_played) }))
 				
 				default:
 					return [] } }
-			
-		const scrobbly = async files => {
-			
-			const filter = streams => streams.filter( stream => stream.duration >= 30 * 1000 && stream.artistName != null && stream.artistName != '' && stream.trackName != null && stream.trackName != '' )
-			
-			const sort = streams => streams.sort( (a,b) => Date.parse(a.time) - Date.parse(b.time) )
 
-			return Promise.all( [...files].map(parse) )
-				.then( streams => streams.flat() )
-				.then( workly(filter) )
-				.then( workly(sort) ) }
+		function filterAndSort (streams) {
 
-		const scribbly = async streams => {
+			const filtered = streams.filter( stream =>
+								stream.duration >= 30 * 1000 &&
+								stream.artistName &&
+								stream.trackName )
+
+			const filteredAndSorted = filtered.sort( (a, b) => Date.parse(a.time) - Date.parse(b.time) )
+
+			return filteredAndSorted }
+			
+		async function scrobbly (files) {
+
+			const parsedFiles = await Promise.all( [...files].map(parse) )
+
+			const parsedStreams = parsedFiles.flat()
+			
+			return filterAndSortWorker(parsedStreams) }
+
+		function divideArrayBy (array, divisor) {
+			let x = []
+			while (array.length) x.push( array.splice(0, divisor) )
+			return x }
+
+		async function scribbly (streams) {
 
 			streams = await streams
 			streams.forEach(stream => delete stream.duration)
 
 			if (streams.length > 0) {
 				
-				const files = streams.divideBy(2600).map(day => new File( [JSON.stringify(day)], day[0].time.replaceAll(':', '') + '.json', {type: 'application/json'} ))
+				const files = divideArrayBy( streams, 2600 )
+						.map( day => new File( [JSON.stringify(day)],
+									day[0].time.replaceAll(':', '') + '.json',
+									{ type: 'application/json' } ))
 				
 				const zip = await clientZip(files).blob()
 
 				circle('👇', 'download')
 				
-				document.querySelector('circle').onclick = (event) => {
+				document.querySelector('circle').onclick = event => {
 					event.target.onclick = null
 					location.assign( URL.createObjectURL(zip) )
 					circle('👍') } } 
 			
 			else circle('😶') }
-		
-		document.querySelector('input').onchange = (event) => {
-			scribbly(scrobbly(event.target.files))
-			circle('🧍‍♀️', 'busy') }
-		
-		unio('👋')
 	</script>
 </head>
 <body>
