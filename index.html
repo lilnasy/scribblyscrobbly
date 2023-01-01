@@ -61,8 +61,21 @@
 
 		document.querySelector('input').onchange = async event => {
 			circle('🧍‍♀️', 'busy')
-			const { streams, shorterThan30sCount, missingDetailsCount, originalLength } = await scrobbly(event.target.files)
-			document.querySelector('stats').innerText = `Found ${originalLength} streams\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds\nRemoved ${missingDetailsCount} that were missing either song name or artist name\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / 2600)} days`
+			const { streams, fileNames, shorterThan30sCount, missingDetailsCount, originalLength } = await scrobbly(event.target.files)
+			const csvFiles = fileNames.filter(name => extension({ name }) === 'csv')
+			const jsonFiles = fileNames.filter(name => extension({ name }) === 'json')
+			const otherFiles = fileNames.filter(name => extension({ name }) !== 'csv' && extension({ name }) !== 'json')
+			document.querySelector('stats').innerText = `Found ${originalLength} streams` +
+				(csvFiles.length === 1   ? ` from 1 csv file` : '') +
+				(csvFiles.length > 1     ? ` from ${csvFiles.length} csv files` : '') +
+				(jsonFiles.length === 1  ? ` from 1 json file` : '') +
+				(jsonFiles.length > 1    ? ` from ${jsonFiles.length} json files` : '') +
+				(otherFiles.length === 1 ? `\nThere was 1 file that was not used: ${ otherFiles[0] }` : '') +
+				(otherFiles.length > 1   ? `\nThere were ${otherFiles.length} files that were not used: ${ otherFiles.join(', ') }` : '') +
+				(shorterThan30sCount > 0 ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`: '') +
+				(missingDetailsCount > 0 ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name` : '') +
+				(originalLength > 0      ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / 2600)} days` : '')
+			
 			scribbly(streams)
 		}
 
@@ -107,10 +120,11 @@
 			return { filteredAndSorted, shorterThan30sCount, missingDetailsCount } }
 			
 		async function scrobbly (files) {
+			const fileNames = [...files].map(file => file.name)
 			const parsedFiles = await Promise.all( [...files].map(parse) )
 			const parsedStreams = parsedFiles.flat()
 			const { filteredAndSorted, shorterThan30sCount, missingDetailsCount } = await filterAndSortWorker(parsedStreams)
-			return { streams: filteredAndSorted, shorterThan30sCount, missingDetailsCount, originalLength: parsedStreams.length } }
+			return { streams: filteredAndSorted, fileNames, shorterThan30sCount, missingDetailsCount, originalLength: parsedStreams.length } }
 
 		function divideArrayBy (array, divisor) {
 			let x = []
