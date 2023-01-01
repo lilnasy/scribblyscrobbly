@@ -46,17 +46,25 @@
 			z-index: 1 }
 		
 		input::file-selector-button { display: none }
+
+		stats {
+			position: absolute;
+			bottom: 3rem;
+		}
 				
-		author {position: absolute; bottom: 16px; opacity: 0.7}
+		author { position: absolute; bottom: 16px; opacity: 0.7 }
 	</style>
 	<script type='module'>
 		import {csvParse} from 'https://cdn.jsdelivr.net/npm/d3-dsv@3/+esm'
 		import {downloadZip as clientZip} from 'https://cdn.jsdelivr.net/npm/client-zip@2/+esm'
 		import {proxy as workly} from 'https://cdn.jsdelivr.net/npm/workly@1/+esm'
 
-		document.querySelector('input').onchange = event => {
-			scribbly(scrobbly(event.target.files))
-			circle('🧍‍♀️', 'busy') }
+		document.querySelector('input').onchange = async event => {
+			circle('🧍‍♀️', 'busy')
+			const { streams, shorterThan30sCount, missingDetailsCount, originalLength } = await scrobbly(event.target.files)
+			document.querySelector('stats').innerText = `Found ${originalLength} streams\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds\nRemoved ${missingDetailsCount} that were missing either song name or artist name\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / 2600)} days`
+			scribbly(streams)
+		}
 
 		const filterAndSortWorker = workly(filterAndSort)
 
@@ -88,22 +96,21 @@
 
 		function filterAndSort (streams) {
 
-			const filtered = streams.filter( stream =>
-								stream.duration >= 30 * 1000 &&
-								stream.artistName &&
-								stream.trackName )
+			const _filtered = streams.filter( stream => stream.duration >= 30 * 1000 )
+			const shorterThan30sCount = streams.length - _filtered.length
+			
+			const filtered = _filtered.filter( stream => stream.artistName && stream.trackName )
+			const missingDetailsCount = _filtered.length - filtered.length
 
 			const filteredAndSorted = filtered.sort( (a, b) => Date.parse(a.time) - Date.parse(b.time) )
 
-			return filteredAndSorted }
+			return { filteredAndSorted, shorterThan30sCount, missingDetailsCount } }
 			
 		async function scrobbly (files) {
-
 			const parsedFiles = await Promise.all( [...files].map(parse) )
-
 			const parsedStreams = parsedFiles.flat()
-			
-			return filterAndSortWorker(parsedStreams) }
+			const { filteredAndSorted, shorterThan30sCount, missingDetailsCount } = await filterAndSortWorker(parsedStreams)
+			return { streams: filteredAndSorted, shorterThan30sCount, missingDetailsCount, originalLength: parsedStreams.length } }
 
 		function divideArrayBy (array, divisor) {
 			let x = []
@@ -111,33 +118,31 @@
 			return x }
 
 		async function scribbly (streams) {
-
-			streams = await streams
+			console.log({streams})
 			streams.forEach(stream => delete stream.duration)
-
-			if (streams.length > 0) {
-				
-				const files = divideArrayBy( streams, 2600 )
-						.map( day => new File( [JSON.stringify(day)],
-									day[0].time.replaceAll(':', '') + '.json',
-									{ type: 'application/json' } ))
-				
-				const zip = await clientZip(files).blob()
-
-				circle('👇', 'download')
-				
-				document.querySelector('circle').onclick = event => {
-					event.target.onclick = null
-					location.assign( URL.createObjectURL(zip) )
-					circle('👍') } } 
 			
-			else circle('😶') }
+			if (streams.length === 0) return circle('😶')
+				
+			const files = divideArrayBy( streams, 2600 )
+					.map( day => new File( [JSON.stringify(day)],
+								day[0].time.replaceAll(':', '') + '.json',
+								{ type: 'application/json' } ))
+			
+			const zip = await clientZip(files).blob()
+
+			circle('👇', 'download')
+			
+			document.querySelector('circle').onclick = event => {
+				event.target.onclick = null
+				location.assign( URL.createObjectURL(zip) )
+				circle('👍') } }
 	</script>
 </head>
 <body>
 	<circle>
 		☝️<input type='file' accept='.json,.csv' multiple/>
 	</circle>
+	<stats></stats>
 	<author>
 		made by arsh#1221
 		<a href='https://www.last.fm/user/arshx' style='color: #d50'>LastFM</a>
