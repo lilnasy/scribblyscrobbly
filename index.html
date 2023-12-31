@@ -101,7 +101,7 @@
 						artistName: stream.master_metadata_album_artist_name ||  stream.artistName,
 						albumName: stream.master_metadata_album_album_name,
 						trackName: stream.master_metadata_track_name ||  stream.trackName,
-						time: stream.ts ||  stream.,
+						time: stream.ts ||  stream.endTime,
 						duration: Number(stream.ms_played)  ||  Number(stream.msPlayed) }))
 				
 				default:
