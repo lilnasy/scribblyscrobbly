@@ -10,7 +10,7 @@
                 height: 100vh;
                 width: 100vw;
                 margin: 0;
-                text-rendering: optimizeLegibility;
+                flex-direction: column;
                 overflow: hidden;
             }
 
@@ -32,7 +32,7 @@
 
             circle,
             circle:before,
-            input {
+            input[type="file"] {
                 height: 100px;
                 width: 100px;
                 border-radius: 50%;
@@ -62,14 +62,50 @@
                 }
             }
 
-            input {
+            input[type="file"] {
                 font-size: 0;
                 position: absolute;
                 z-index: 1;
             }
 
-            input::file-selector-button {
+            input[type="file"]::file-selector-button {
                 display: none;
+            }
+
+            .pill {
+                width: 100px;
+                padding: 5px 10px;
+                border: 1px solid #aaa;
+                border-radius: 20px;
+                outline: none;
+                text-align: center;
+                font-family: sans-serif;
+                font-size: 14px;
+            }
+
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+
+            input[type="number"] {
+                -moz-appearance: textfield;
+            }
+
+            .divideby p {
+                margin: 2px 0 0;
+                font-size: 14px;
+            }
+
+            .divideby {
+                position: absolute;
+                top: calc(50% + 100px);
+                bottom: 20%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                opacity: 0.7;
             }
 
             stats {
@@ -88,7 +124,7 @@
             import { downloadZip as clientZip } from "https://cdn.jsdelivr.net/npm/client-zip@2/+esm";
             import { proxy as workly } from "https://cdn.jsdelivr.net/npm/workly@1/+esm";
 
-            document.querySelector("input").onchange = async (event) => {
+            document.querySelector(".file").onchange = async (event) => {
                 circle("🧍‍♀️", "busy");
                 const {
                     streams,
@@ -108,6 +144,7 @@
                         extension({ name }) !== "csv" &&
                         extension({ name }) !== "json",
                 );
+                const divideBy = Number(document.querySelector(".pill").value);
                 document.querySelector("stats").innerText =
                     `Found ${originalLength} streams` +
                     (csvFiles.length === 1 ? ` from 1 csv file` : "") +
@@ -131,10 +168,10 @@
                         ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name`
                         : "") +
                     (originalLength > 0
-                        ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / 2600)} days`
+                        ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / divideBy)} days`
                         : "");
 
-                scribbly(streams);
+                scribbly(streams, divideBy);
             };
 
             const filterAndSortWorker = workly(filterAndSort);
@@ -227,13 +264,13 @@
                 return x;
             }
 
-            async function scribbly(streams) {
+            async function scribbly(streams, divideBy) {
                 console.log({ streams });
                 streams.forEach((stream) => delete stream.duration);
 
                 if (streams.length === 0) return circle("😶");
 
-                const files = divideArrayBy(streams, 2600).map(
+                const files = divideArrayBy(streams, divideBy).map(
                     (day) =>
                         new File(
                             [JSON.stringify(day)],
@@ -255,7 +292,13 @@
         </script>
     </head>
     <body>
-        <circle> ☝️<input type="file" accept=".json,.csv" multiple /> </circle>
+        <circle>
+            ☝️<input class="file" type="file" accept=".json,.csv" multiple />
+        </circle>
+        <div class="divideby">
+            <input class="pill" type="number" value="600" />
+            <p>streams per file</p>
+        </div>
         <stats></stats>
         <author>
             made by arsh#1221
