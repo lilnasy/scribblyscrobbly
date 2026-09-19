@@ -79,38 +79,16 @@
                 display: none;
             }
 
-            .pill {
-                width: 100px;
-                padding: 5px 10px;
+            .divisor {
+                font: inherit;
+                padding: 2px 6px;
                 border: 1px solid #aaa;
                 border-radius: 20px;
-                outline: none;
-                text-align: center;
-                font-family: sans-serif;
-                font-size: 14px;
-            }
-
-            input::-webkit-outer-spin-button,
-            input::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-
-            input[type="number"] {
-                -moz-appearance: textfield;
-            }
-
-            .divideby p {
-                margin: 2px 0 0;
-                font-size: 14px;
             }
 
             .divideby {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                opacity: 0.7;
-                grid-row: 3;
+                margin: 0;
+                grid-row: 4;
             }
 
             circle:not([state="division"]) ~ .divideby {
@@ -118,7 +96,7 @@
             }
 
             stats {
-                grid-row: 4;
+                grid-row: 3;
             }
 
             author {
@@ -151,48 +129,50 @@
                         extension({ name }) !== "csv" &&
                         extension({ name }) !== "json",
                 );
-                const pill = document.querySelector(".pill");
-                const renderStats = () => {
-                    const divideBy = Number(pill.value);
-                    document.querySelector("stats").innerText =
-                        `Found ${originalLength} streams` +
-                        (csvFiles.length === 1 ? ` from 1 csv file` : "") +
-                        (csvFiles.length > 1
-                            ? ` from ${csvFiles.length} csv files`
-                            : "") +
-                        (jsonFiles.length === 1 ? ` from 1 json file` : "") +
-                        (jsonFiles.length > 1
-                            ? ` from ${jsonFiles.length} json files`
-                            : "") +
-                        (otherFiles.length === 1
-                            ? `\nThere was 1 file that was not used: ${otherFiles[0]}`
-                            : "") +
-                        (otherFiles.length > 1
-                            ? `\nThere were ${otherFiles.length} files that were not used: ${otherFiles.join(", ")}`
-                            : "") +
-                        (shorterThan30sCount > 0
-                            ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`
-                            : "") +
-                        (missingDetailsCount > 0
-                            ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name`
-                            : "") +
-                        (originalLength > 0
-                            ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / divideBy)} days`
-                            : "");
+                const divisor = document.querySelector(".divisor");
+                const renderDays = () => {
+                    document.querySelector(".days").innerText = Math.ceil(
+                        streams.length / Number(divisor.value),
+                    );
                 };
-                renderStats();
+                document.querySelector("stats").innerText =
+                    `Found ${originalLength} streams` +
+                    (csvFiles.length === 1 ? ` from 1 csv file` : "") +
+                    (csvFiles.length > 1
+                        ? ` from ${csvFiles.length} csv files`
+                        : "") +
+                    (jsonFiles.length === 1 ? ` from 1 json file` : "") +
+                    (jsonFiles.length > 1
+                        ? ` from ${jsonFiles.length} json files`
+                        : "") +
+                    (otherFiles.length === 1
+                        ? `\nThere was 1 file that was not used: ${otherFiles[0]}`
+                        : "") +
+                    (otherFiles.length > 1
+                        ? `\nThere were ${otherFiles.length} files that were not used: ${otherFiles.join(", ")}`
+                        : "") +
+                    (shorterThan30sCount > 0
+                        ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`
+                        : "") +
+                    (missingDetailsCount > 0
+                        ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name`
+                        : "") +
+                    (originalLength > 0
+                        ? `\nResulting in ${streams.length} scrobbleable streams`
+                        : "");
 
                 if (streams.length === 0) return circle("😶");
 
+                renderDays();
                 circle("✂️", "division");
-                pill.oninput = renderStats;
+                divisor.onchange = renderDays;
                 const divide = () => {
-                    pill.oninput = null;
-                    pill.onkeydown = null;
+                    divisor.onchange = null;
+                    divisor.onkeydown = null;
                     document.querySelector("circle").onclick = null;
-                    scribbly(streams, Number(pill.value));
+                    scribbly(streams, Number(divisor.value));
                 };
-                pill.onkeydown = (event) => {
+                divisor.onkeydown = (event) => {
                     if (event.key === "Enter") divide();
                 };
                 document.querySelector("circle").onclick = divide;
@@ -317,11 +297,29 @@
         <circle>
             ☝️<input class="file" type="file" accept=".json,.csv" multiple />
         </circle>
-        <div class="divideby">
-            <input class="pill" type="number" value="600" />
-            <p>streams per file</p>
-        </div>
         <stats></stats>
+        <p class="divideby">
+            At
+            <select class="divisor">
+                <option value="100">100 imports per day</option>
+                <option value="200">200 imports per day</option>
+                <option value="300">300 imports per day</option>
+                <option value="400">400 imports per day</option>
+                <option value="500" selected>500 imports per day</option>
+                <option value="600">600 imports per day</option>
+                <option value="700">700 imports per day</option>
+                <option value="800">800 imports per day</option>
+                <option value="900">900 imports per day</option>
+                <option value="1000">1000 imports per day</option></select
+            ><sup
+                ><a
+                    href="https://support.last.fm/t/what-were-working-on/119032#:~:text=This%20should%20only,be%20listened%20to."
+                    target="_blank"
+                    rel="noopener"
+                    >?</a
+                ></sup
+            >, importing will take <span class="days"></span> days
+        </p>
         <author>
             made by arsh#1221
             <a
