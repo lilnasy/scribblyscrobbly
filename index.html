@@ -292,6 +292,9 @@
 
                 const zip = await clientZip(files).blob();
 
+                document.querySelector("stats").innerText +=
+                    `\nSplit into ${divideBy} streams per file` +
+                    `\nImportable in ${files.length} days`;
                 circle("👇", "download");
 
                 document.querySelector("circle").onclick = (event) => {
