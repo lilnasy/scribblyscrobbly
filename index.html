@@ -91,6 +91,12 @@
                 grid-row: 4;
             }
 
+            .divideby sup a {
+                text-decoration: none;
+                background: #def;
+                color: #36c;
+            }
+
             circle:not([state="division"]) ~ .divideby {
                 display: none;
             }
@@ -308,14 +314,14 @@
                 <option value="800">800 imports per day</option>
                 <option value="900">900 imports per day</option>
                 <option value="1000">1000 imports per day</option></select
-            ><sup
+            >, importing will take <span class="days"></span> days<sup
                 ><a
                     href="https://support.last.fm/t/what-were-working-on/119032#:~:text=This%20should%20only,be%20listened%20to."
                     target="_blank"
                     rel="noopener"
                     >?</a
                 ></sup
-            >, importing will take <span class="days"></span> days
+            >
         </p>
         <author>
             made by arsh#1221
