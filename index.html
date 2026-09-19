@@ -107,7 +107,6 @@
         <script type="module">
             import { csvParse } from "https://cdn.jsdelivr.net/npm/d3-dsv@3/+esm";
             import { downloadZip as clientZip } from "https://cdn.jsdelivr.net/npm/client-zip@2/+esm";
-            import { proxy as workly } from "https://cdn.jsdelivr.net/npm/workly@1/+esm";
 
             document.querySelector(".file").onchange = async (event) => {
                 circle("🧍‍♀️", "busy");
@@ -177,8 +176,6 @@
                 };
                 document.querySelector("circle").onclick = divide;
             };
-
-            const filterAndSortWorker = workly(filterAndSort);
 
             function circle(emoji, state = "") {
                 document.querySelector("circle").innerText = emoji;
@@ -252,7 +249,7 @@
                     filteredAndSorted,
                     shorterThan30sCount,
                     missingDetailsCount,
-                } = await filterAndSortWorker(parsedStreams);
+                } = filterAndSort(parsedStreams);
                 return {
                     streams: filteredAndSorted,
                     fileNames,
