@@ -54,6 +54,7 @@
                 z-index: -1;
             }
 
+            [state="division"],
             [state="download"],
             input {
                 cursor: pointer;
@@ -112,6 +113,10 @@
                 grid-row: 3;
             }
 
+            circle:not([state="division"]) ~ .divideby {
+                display: none;
+            }
+
             stats {
                 grid-row: 4;
             }
@@ -146,34 +151,51 @@
                         extension({ name }) !== "csv" &&
                         extension({ name }) !== "json",
                 );
-                const divideBy = Number(document.querySelector(".pill").value);
-                document.querySelector("stats").innerText =
-                    `Found ${originalLength} streams` +
-                    (csvFiles.length === 1 ? ` from 1 csv file` : "") +
-                    (csvFiles.length > 1
-                        ? ` from ${csvFiles.length} csv files`
-                        : "") +
-                    (jsonFiles.length === 1 ? ` from 1 json file` : "") +
-                    (jsonFiles.length > 1
-                        ? ` from ${jsonFiles.length} json files`
-                        : "") +
-                    (otherFiles.length === 1
-                        ? `\nThere was 1 file that was not used: ${otherFiles[0]}`
-                        : "") +
-                    (otherFiles.length > 1
-                        ? `\nThere were ${otherFiles.length} files that were not used: ${otherFiles.join(", ")}`
-                        : "") +
-                    (shorterThan30sCount > 0
-                        ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`
-                        : "") +
-                    (missingDetailsCount > 0
-                        ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name`
-                        : "") +
-                    (originalLength > 0
-                        ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / divideBy)} days`
-                        : "");
+                const pill = document.querySelector(".pill");
+                const renderStats = () => {
+                    const divideBy = Number(pill.value);
+                    document.querySelector("stats").innerText =
+                        `Found ${originalLength} streams` +
+                        (csvFiles.length === 1 ? ` from 1 csv file` : "") +
+                        (csvFiles.length > 1
+                            ? ` from ${csvFiles.length} csv files`
+                            : "") +
+                        (jsonFiles.length === 1 ? ` from 1 json file` : "") +
+                        (jsonFiles.length > 1
+                            ? ` from ${jsonFiles.length} json files`
+                            : "") +
+                        (otherFiles.length === 1
+                            ? `\nThere was 1 file that was not used: ${otherFiles[0]}`
+                            : "") +
+                        (otherFiles.length > 1
+                            ? `\nThere were ${otherFiles.length} files that were not used: ${otherFiles.join(", ")}`
+                            : "") +
+                        (shorterThan30sCount > 0
+                            ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`
+                            : "") +
+                        (missingDetailsCount > 0
+                            ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name`
+                            : "") +
+                        (originalLength > 0
+                            ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / divideBy)} days`
+                            : "");
+                };
+                renderStats();
 
-                scribbly(streams, divideBy);
+                if (streams.length === 0) return circle("😶");
+
+                circle("✂️", "division");
+                pill.oninput = renderStats;
+                const divide = () => {
+                    pill.oninput = null;
+                    pill.onkeydown = null;
+                    document.querySelector("circle").onclick = null;
+                    scribbly(streams, Number(pill.value));
+                };
+                pill.onkeydown = (event) => {
+                    if (event.key === "Enter") divide();
+                };
+                document.querySelector("circle").onclick = divide;
             };
 
             const filterAndSortWorker = workly(filterAndSort);
@@ -269,8 +291,6 @@
             async function scribbly(streams, divideBy) {
                 console.log({ streams });
                 streams.forEach((stream) => delete stream.duration);
-
-                if (streams.length === 0) return circle("😶");
 
                 const files = divideArrayBy(streams, divideBy).map(
                     (day) =>
