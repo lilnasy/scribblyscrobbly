@@ -1,165 +1,269 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset='utf-8'>
-	<meta name='viewport' content='width=device-width, initial-scale=1'>
-	<title>scribbly scrobbly</title>
-	<style>
-		body {
-			font-family: sans-serif;
-			height: 100vh;
-			width: 100vw;
-			margin: 0;
-			text-rendering: optimizeLegibility;
-			overflow: hidden }
-		
-		body, circle {
-			display: flex;
-			justify-content: center;
-			align-items: center }
-		
-		circle { font-size: 48px; transition: 0.2s ease-out }
-				
-		circle:hover { transform: scale(1.05) }
-		
-		circle, circle:before, input {
-			height: 100px;
-			width: 100px;
-			border-radius: 50% }
-		
-		circle:before {
-			content: '';
-			position: absolute;
-			background: white;
-			filter: drop-shadow(4px 4px 16px #f008) drop-shadow(-4px -4px 16px #00f8);
-			animation: rotate 60s linear infinite;
-			z-index: -1 }
-		
-		[state=download], input { cursor: pointer }
-		[state=busy]:before { animation-duration: 2s }
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>scribbly scrobbly</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                height: 100vh;
+                width: 100vw;
+                margin: 0;
+                text-rendering: optimizeLegibility;
+                overflow: hidden;
+            }
 
-		@keyframes rotate { to { transform: rotate(360deg) } }
-		
-		input {
-			font-size: 0;
-			position: absolute;
-			z-index: 1 }
-		
-		input::file-selector-button { display: none }
+            body,
+            circle {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
 
-		stats {
-			position: absolute;
-			bottom: 3rem;
-		}
-				
-		author { position: absolute; bottom: 16px; opacity: 0.7 }
-	</style>
-	<script type='module'>
-		import {csvParse} from 'https://cdn.jsdelivr.net/npm/d3-dsv@3/+esm'
-		import {downloadZip as clientZip} from 'https://cdn.jsdelivr.net/npm/client-zip@2/+esm'
-		import {proxy as workly} from 'https://cdn.jsdelivr.net/npm/workly@1/+esm'
+            circle {
+                font-size: 48px;
+                transition: 0.2s ease-out;
+            }
 
-		document.querySelector('input').onchange = async event => {
-			circle('🧍‍♀️', 'busy')
-			const { streams, fileNames, shorterThan30sCount, missingDetailsCount, originalLength } = await scrobbly(event.target.files)
-			const csvFiles = fileNames.filter(name => extension({ name }) === 'csv')
-			const jsonFiles = fileNames.filter(name => extension({ name }) === 'json')
-			const otherFiles = fileNames.filter(name => extension({ name }) !== 'csv' && extension({ name }) !== 'json')
-			document.querySelector('stats').innerText = `Found ${originalLength} streams` +
-				(csvFiles.length === 1   ? ` from 1 csv file` : '') +
-				(csvFiles.length > 1     ? ` from ${csvFiles.length} csv files` : '') +
-				(jsonFiles.length === 1  ? ` from 1 json file` : '') +
-				(jsonFiles.length > 1    ? ` from ${jsonFiles.length} json files` : '') +
-				(otherFiles.length === 1 ? `\nThere was 1 file that was not used: ${ otherFiles[0] }` : '') +
-				(otherFiles.length > 1   ? `\nThere were ${otherFiles.length} files that were not used: ${ otherFiles.join(', ') }` : '') +
-				(shorterThan30sCount > 0 ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`: '') +
-				(missingDetailsCount > 0 ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name` : '') +
-				(originalLength > 0      ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / 2600)} days` : '')
-			
-			scribbly(streams)
-		}
+            circle:hover {
+                transform: scale(1.05);
+            }
 
-		const filterAndSortWorker = workly(filterAndSort)
+            circle,
+            circle:before,
+            input {
+                height: 100px;
+                width: 100px;
+                border-radius: 50%;
+            }
 
-		function circle (emoji, state='') {
-			document.querySelector('circle').innerText = emoji
-			document.querySelector('circle').setAttribute('state', state) }
+            circle:before {
+                content: "";
+                position: absolute;
+                background: white;
+                filter: drop-shadow(4px 4px 16px #f008)
+                    drop-shadow(-4px -4px 16px #00f8);
+                animation: rotate 60s linear infinite;
+                z-index: -1;
+            }
 
-		function extension (file) { return file.name.split('.').pop() }
-		
-		async function parse (file) {
-			switch ( extension(file) ) {
-				case 'csv':
-					return csvParse(await file.text(), stream => ({
-						artistName: stream['Artist Name'],
-						trackName: stream['Content Name'] || stream['Song Name'],
-						time: stream['Event Start Timestamp'],
-						duration: Number(stream['Play Duration Milliseconds']) }))
-				
-				case 'json':
-					return JSON.parse(await file.text()).map(stream => ({
-						artistName: stream.master_metadata_album_artist_name ||  stream.artistName,
-						albumName: stream.master_metadata_album_album_name,
-						trackName: stream.master_metadata_track_name ||  stream.trackName,
-						time: stream.ts ||  stream.endTime,
-						duration: Number(stream.ms_played)  ||  Number(stream.msPlayed) }))
-				
-				default:
-					return [] } }
+            [state="download"],
+            input {
+                cursor: pointer;
+            }
+            [state="busy"]:before {
+                animation-duration: 2s;
+            }
 
-		function filterAndSort (streams) {
+            @keyframes rotate {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
 
-			const _filtered = streams.filter( stream => stream.duration >= 30 * 1000 )
-			const shorterThan30sCount = streams.length - _filtered.length
-			
-			const filtered = _filtered.filter( stream => stream.artistName && stream.trackName )
-			const missingDetailsCount = _filtered.length - filtered.length
+            input {
+                font-size: 0;
+                position: absolute;
+                z-index: 1;
+            }
 
-			const filteredAndSorted = filtered.sort( (a, b) => Date.parse(a.time) - Date.parse(b.time) )
+            input::file-selector-button {
+                display: none;
+            }
 
-			return { filteredAndSorted, shorterThan30sCount, missingDetailsCount } }
-			
-		async function scrobbly (files) {
-			const fileNames = [...files].map(file => file.name)
-			const parsedFiles = await Promise.all( [...files].map(parse) )
-			const parsedStreams = parsedFiles.flat()
-			const { filteredAndSorted, shorterThan30sCount, missingDetailsCount } = await filterAndSortWorker(parsedStreams)
-			return { streams: filteredAndSorted, fileNames, shorterThan30sCount, missingDetailsCount, originalLength: parsedStreams.length } }
+            stats {
+                position: absolute;
+                bottom: 3rem;
+            }
 
-		function divideArrayBy (array, divisor) {
-			let x = []
-			while (array.length) x.push( array.splice(0, divisor) )
-			return x }
+            author {
+                position: absolute;
+                bottom: 16px;
+                opacity: 0.7;
+            }
+        </style>
+        <script type="module">
+            import { csvParse } from "https://cdn.jsdelivr.net/npm/d3-dsv@3/+esm";
+            import { downloadZip as clientZip } from "https://cdn.jsdelivr.net/npm/client-zip@2/+esm";
+            import { proxy as workly } from "https://cdn.jsdelivr.net/npm/workly@1/+esm";
 
-		async function scribbly (streams) {
-			console.log({streams})
-			streams.forEach(stream => delete stream.duration)
-			
-			if (streams.length === 0) return circle('😶')
-				
-			const files = divideArrayBy( streams, 2600 )
-					.map( day => new File( [JSON.stringify(day)],
-								day[0].time.replaceAll(':', '') + '.json',
-								{ type: 'application/json' } ))
-			
-			const zip = await clientZip(files).blob()
+            document.querySelector("input").onchange = async (event) => {
+                circle("🧍‍♀️", "busy");
+                const {
+                    streams,
+                    fileNames,
+                    shorterThan30sCount,
+                    missingDetailsCount,
+                    originalLength,
+                } = await scrobbly(event.target.files);
+                const csvFiles = fileNames.filter(
+                    (name) => extension({ name }) === "csv",
+                );
+                const jsonFiles = fileNames.filter(
+                    (name) => extension({ name }) === "json",
+                );
+                const otherFiles = fileNames.filter(
+                    (name) =>
+                        extension({ name }) !== "csv" &&
+                        extension({ name }) !== "json",
+                );
+                document.querySelector("stats").innerText =
+                    `Found ${originalLength} streams` +
+                    (csvFiles.length === 1 ? ` from 1 csv file` : "") +
+                    (csvFiles.length > 1
+                        ? ` from ${csvFiles.length} csv files`
+                        : "") +
+                    (jsonFiles.length === 1 ? ` from 1 json file` : "") +
+                    (jsonFiles.length > 1
+                        ? ` from ${jsonFiles.length} json files`
+                        : "") +
+                    (otherFiles.length === 1
+                        ? `\nThere was 1 file that was not used: ${otherFiles[0]}`
+                        : "") +
+                    (otherFiles.length > 1
+                        ? `\nThere were ${otherFiles.length} files that were not used: ${otherFiles.join(", ")}`
+                        : "") +
+                    (shorterThan30sCount > 0
+                        ? `\nRemoved ${shorterThan30sCount} that lasted for less than 30 seconds`
+                        : "") +
+                    (missingDetailsCount > 0
+                        ? `\nRemoved ${missingDetailsCount} that were missing either song name or artist name`
+                        : "") +
+                    (originalLength > 0
+                        ? `\nResulting in ${streams.length} streams that can be imported in ${Math.ceil(streams.length / 2600)} days`
+                        : "");
 
-			circle('👇', 'download')
-			
-			document.querySelector('circle').onclick = event => {
-				event.target.onclick = null
-				location.assign( URL.createObjectURL(zip) )
-				circle('👍') } }
-	</script>
-</head>
-<body>
-	<circle>
-		☝️<input type='file' accept='.json,.csv' multiple/>
-	</circle>
-	<stats></stats>
-	<author>
-		made by arsh#1221
-		<a href='https://open.spotify.com/user/arshbunny' style='color: #2d6'>Spotify</a>
-	</author>
-</body>
+                scribbly(streams);
+            };
+
+            const filterAndSortWorker = workly(filterAndSort);
+
+            function circle(emoji, state = "") {
+                document.querySelector("circle").innerText = emoji;
+                document.querySelector("circle").setAttribute("state", state);
+            }
+
+            function extension(file) {
+                return file.name.split(".").pop();
+            }
+
+            async function parse(file) {
+                switch (extension(file)) {
+                    case "csv":
+                        return csvParse(await file.text(), (stream) => ({
+                            artistName: stream["Artist Name"],
+                            trackName:
+                                stream["Content Name"] || stream["Song Name"],
+                            time: stream["Event Start Timestamp"],
+                            duration: Number(
+                                stream["Play Duration Milliseconds"],
+                            ),
+                        }));
+
+                    case "json":
+                        return JSON.parse(await file.text()).map((stream) => ({
+                            artistName:
+                                stream.master_metadata_album_artist_name ||
+                                stream.artistName,
+                            albumName: stream.master_metadata_album_album_name,
+                            trackName:
+                                stream.master_metadata_track_name ||
+                                stream.trackName,
+                            time: stream.ts || stream.endTime,
+                            duration:
+                                Number(stream.ms_played) ||
+                                Number(stream.msPlayed),
+                        }));
+
+                    default:
+                        return [];
+                }
+            }
+
+            function filterAndSort(streams) {
+                const _filtered = streams.filter(
+                    (stream) => stream.duration >= 30 * 1000,
+                );
+                const shorterThan30sCount = streams.length - _filtered.length;
+
+                const filtered = _filtered.filter(
+                    (stream) => stream.artistName && stream.trackName,
+                );
+                const missingDetailsCount = _filtered.length - filtered.length;
+
+                const filteredAndSorted = filtered.sort(
+                    (a, b) => Date.parse(a.time) - Date.parse(b.time),
+                );
+
+                return {
+                    filteredAndSorted,
+                    shorterThan30sCount,
+                    missingDetailsCount,
+                };
+            }
+
+            async function scrobbly(files) {
+                const fileNames = [...files].map((file) => file.name);
+                const parsedFiles = await Promise.all([...files].map(parse));
+                const parsedStreams = parsedFiles.flat();
+                const {
+                    filteredAndSorted,
+                    shorterThan30sCount,
+                    missingDetailsCount,
+                } = await filterAndSortWorker(parsedStreams);
+                return {
+                    streams: filteredAndSorted,
+                    fileNames,
+                    shorterThan30sCount,
+                    missingDetailsCount,
+                    originalLength: parsedStreams.length,
+                };
+            }
+
+            function divideArrayBy(array, divisor) {
+                let x = [];
+                while (array.length) x.push(array.splice(0, divisor));
+                return x;
+            }
+
+            async function scribbly(streams) {
+                console.log({ streams });
+                streams.forEach((stream) => delete stream.duration);
+
+                if (streams.length === 0) return circle("😶");
+
+                const files = divideArrayBy(streams, 2600).map(
+                    (day) =>
+                        new File(
+                            [JSON.stringify(day)],
+                            day[0].time.replaceAll(":", "") + ".json",
+                            { type: "application/json" },
+                        ),
+                );
+
+                const zip = await clientZip(files).blob();
+
+                circle("👇", "download");
+
+                document.querySelector("circle").onclick = (event) => {
+                    event.target.onclick = null;
+                    location.assign(URL.createObjectURL(zip));
+                    circle("👍");
+                };
+            }
+        </script>
+    </head>
+    <body>
+        <circle> ☝️<input type="file" accept=".json,.csv" multiple /> </circle>
+        <stats></stats>
+        <author>
+            made by arsh#1221
+            <a
+                href="https://open.spotify.com/user/arshbunny"
+                style="color: #2d6"
+                >Spotify</a
+            >
+        </author>
+    </body>
 </html>
